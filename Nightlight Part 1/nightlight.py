@@ -27,9 +27,15 @@ class Nightlight():
         self.neo = neopixel.NeoPixel(Pin(28),1)
         self.neo[0] = (0,0,0)
         self.neo.write()
+
+        self.breath_task = None
         
         self.connect()
-        asyncio.run(self.breath())
+        self.start_mqtt()
+
+                # Start the event loop
+        asyncio.create_task(self.check_messages())  # Schedule the MQTT message checking
+        asyncio.get_event_loop().run_forever()      # Keep the event loop running
         
     def connect(self):
         wlan = network.WLAN(network.STA_IF)
@@ -43,37 +49,41 @@ class Nightlight():
     def start_mqtt(self):
         mqtt_broker = 'broker.hivemq.com' 
         port = 1883
-        topic_sub = 'nightlight/#'       # this reads anything sent to ME35
-        topic_pub = 'nightlight/tell'
-
+        topic_sub = 'nightlight/switch'
 
         def callback(topic, msg):
             print((topic.decode(), msg.decode()))
+            if topic.decode() == 'nightlight/switch' and msg.decode() == 'toggle':
+                self.toggle_state()
 
-        client = MQTTClient('Noah', mqtt_broker , port, keepalive=60)
-        client.connect()
+        self.client = MQTTClient('Noah', mqtt_broker , port, keepalive=60)
+        self.client.connect()
         print('Connected to %s MQTT broker' % (mqtt_broker))
-        client.set_callback(callback)          # set the callback if anything is read
-        client.subscribe(topic_sub.encode())   # subscribe to a bunch of topics
+        self.client.set_callback(callback)          # set the callback if anything is read
+        self.client.subscribe(topic_sub.encode())   # subscribe to a bunch of topics
 
-        msg = 'this is a test'
-        i = 0
+    async def check_messages(self):
         while True:
-            i+=1
-            if i %5 == 0:
-                print('publishing')
-                client.publish(topic_pub.encode(),msg.encode())
-            client.check_msg()
-            time.sleep(1)
+            self.client.check_msg()
+            await asyncio.sleep(1)
             
     async def breath(self):
-        while self.on:
-            for i in range(0,65535,500):
-                self.led.duty_u16(i)     #  u16 means unsighed 16 bit integer (0-65535)
-                await asyncio.sleep_ms(10)
-            for i in range(65535,0,-500):
-                self.led.duty_u16(i)     #  u16 means unsighed 16 bit integer (0-65535)
-                await asyncio.sleep_ms(10)
+        try:
+            while True:
+                if self.on:
+                    for i in range(0, 65535, 500):
+                        self.led.duty_u16(i)
+                        await asyncio.sleep_ms(20)
+                    for i in range(65535, 0, -500):
+                        self.led.duty_u16(i)
+                        await asyncio.sleep_ms(20)
+                else:
+                    self.led.duty_u16(0)
+                    await asyncio.sleep(0.5)
+        except asyncio.CancelledError:
+            self.led.duty_u16(0)  # Ensure the LED turns off when canceled
+            print("Breath task canceled")
+            return
                 
     async def beep(self):
         self.buzzer.duty_u16(500)
@@ -93,13 +103,14 @@ class Nightlight():
     def button_press(self, state):
         self.update_neopixel()
         if self.on:
-            asyncio.run(self.beep())
+            asyncio.create_task(self.beep())
             
     def toggle_state(self):
         self.on = not self.on
-        if self.on:
-            asyncio.run(self.breath())
         self.update_neopixel()
+        if self.on:
+            self.breath_task = asyncio.create_task(self.breath())
+        else:
+            self.breath_task.cancel()
             
-test = Nightlight()
-test.toggle_state()
+night = Nightlight()
