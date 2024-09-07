@@ -9,35 +9,42 @@ import neopixel
 import random
 
 class Nightlight():
+    # class to control all things nightlight
     
     def __init__(self):
         self.on = False
         
+        # setup 'breathing' LED
         self.led = PWM(Pin('GPIO0', Pin.OUT))
         self.led.freq(50)
         self.led.duty_u16(0)
         
+        # setup buzzer
         self.buzzer = PWM(Pin('GPIO18', Pin.OUT))
         self.buzzer.freq(220)
         self.buzzer.duty_u16(0)
         
+        # setup button and callback
         self.button = Pin('GPIO20', Pin.IN, machine.Pin.PULL_UP)
         self.button.irq(trigger=Pin.IRQ_FALLING, handler=self.button_press)
         
+        # setup neopixel
         self.neo = neopixel.NeoPixel(Pin(28),1)
         self.neo[0] = (0,0,0)
         self.neo.write()
 
-        self.breath_task = None
+        self.breath_task = None     # to store breath task, allows for cancelation
         
+        # connect to wifi and mqtt
         self.connect()
         self.start_mqtt()
 
-                # Start the event loop
+        # Start the event loop
         asyncio.create_task(self.check_messages())  # Schedule the MQTT message checking
         asyncio.get_event_loop().run_forever()      # Keep the event loop running
         
     def connect(self):
+        # connects to wifi with credentials stored in secrets.py
         wlan = network.WLAN(network.STA_IF)
         wlan.active(True)
         wlan.connect(mysecrets['SSID'], mysecrets['key'])
@@ -47,12 +54,13 @@ class Nightlight():
         return wlan.ifconfig()
     
     def start_mqtt(self):
+        # connect MQTT client and subscribe to topic
         mqtt_broker = 'broker.hivemq.com' 
         port = 1883
         topic_sub = 'nightlight/switch'
 
         def callback(topic, msg):
-            print((topic.decode(), msg.decode()))
+            # callback checks if topic and message are correct to turn on/off
             if topic.decode() == 'nightlight/switch' and msg.decode() == 'toggle':
                 self.toggle_state()
 
@@ -63,11 +71,13 @@ class Nightlight():
         self.client.subscribe(topic_sub.encode())   # subscribe to a bunch of topics
 
     async def check_messages(self):
+        # check for new MQTT messages every second
         while True:
             self.client.check_msg()
             await asyncio.sleep(1)
             
     async def breath(self):
+        # Continuously 'breathe' the LED until cancelled
         try:
             while True:
                 if self.on:
@@ -91,6 +101,8 @@ class Nightlight():
         self.buzzer.duty_u16(0)
         
     def update_neopixel(self):
+        # set neopixel to a random color if nightlight is on
+        # otherwise make sure neopixel is off
         if self.on:
             r = random.randint(0, 50)
             g = random.randint(0, 50)
@@ -101,16 +113,22 @@ class Nightlight():
         self.neo.write()
         
     def button_press(self, state):
+        # callback on button press
+        # update neopixel and start async beep task
         self.update_neopixel()
         if self.on:
             asyncio.create_task(self.beep())
             
     def toggle_state(self):
+        # method to switch everything on or off
+        # called when a new MQTT message matches the criteria
         self.on = not self.on
         self.update_neopixel()
         if self.on:
+            print('switched on')
             self.breath_task = asyncio.create_task(self.breath())
         else:
+            print('switched off')
             self.breath_task.cancel()
             
 night = Nightlight()
