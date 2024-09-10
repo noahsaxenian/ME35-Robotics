@@ -1,7 +1,7 @@
 import time
 from mqtt import MQTTClient
 import network
-from secrets import mysecrets
+from secrets3 import mysecrets
 import urequests
 import asyncio
 from machine import Pin, PWM
@@ -57,11 +57,11 @@ class Nightlight():
         # connect MQTT client and subscribe to topic
         mqtt_broker = 'broker.hivemq.com' 
         port = 1883
-        topic_sub = 'nightlight/switch'
+        topic_sub = 'ME35-24/carlo'
 
         def callback(topic, msg):
             # callback checks if topic and message are correct to turn on/off
-            if topic.decode() == 'nightlight/switch' and msg.decode() == 'toggle':
+            if topic.decode() == topic_sub and msg.decode() == 'toggle':
                 self.toggle_state()
 
         self.client = MQTTClient('Noah', mqtt_broker , port, keepalive=60)
