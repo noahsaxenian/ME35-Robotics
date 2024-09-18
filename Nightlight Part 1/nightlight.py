@@ -1,7 +1,7 @@
 import time
 from mqtt import MQTTClient
 import network
-from secrets3 import mysecrets
+from secrets2 import mysecrets
 import urequests
 import asyncio
 from machine import Pin, PWM
