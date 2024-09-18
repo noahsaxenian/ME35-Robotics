@@ -77,8 +77,8 @@ class Nightlight():
                     print('on')
                 if msg.decode() == 'off':
                     self.on = False
-                    self.update_neopixel()
                     print('off')
+                self.update_neopixel()
 
         self.client = MQTTClient('Noah', mqtt_broker , port, keepalive=0)
         self.client.connect()
