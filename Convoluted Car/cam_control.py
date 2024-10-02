@@ -6,11 +6,11 @@ import machine
 import sensor
 
 SSID = mysecrets['SSID']  # Network SSID
-KEY = mysecrets['key']
+KEY = mysecrets['key']    # Network Password
 
 mqtt_broker = 'broker.hivemq.com'
 
-topic_pub = 'ME35-24/noah'
+topic_pub = 'ME35-24/noahmedha'
 
 # Init wlan module and connect to network
 wlan = network.WLAN(network.STA_IF)
@@ -27,6 +27,7 @@ print("WiFi Connected ", wlan.ifconfig())
 client = MQTTClient("openmv_noah", mqtt_broker, port=1883)
 client.connect()
 
+# Setup camera
 sensor.reset()
 sensor.set_pixformat(sensor.GRAYSCALE)
 sensor.set_framesize(sensor.QQVGA)
@@ -41,21 +42,21 @@ c_y = 120 * 0.5  # find_apriltags defaults to this if not set (the image.h * 0.5
 
 found_tag = 0
 while True:
+    # get x, y coordinates of a tag
     x, y = None, None
     img = sensor.snapshot()
     for tag in img.find_apriltags(
-        fx=f_x, fy=f_y, cx=c_x, cy=c_y
-    ):  # defaults to TAG36H11
+        fx=f_x, fy=f_y, cx=c_x, cy=c_y):
         img.draw_rectangle(tag.rect, color=(255, 0, 0))
         img.draw_cross(tag.cx, tag.cy, color=(0, 255, 0))
         x = tag.x_translation
         y = tag.y_translation
-        found_tag = 1
+        found_tag = 1 # 1 if tag, 0 if no tag found
 
-    msg = f'{found_tag},{x},{y}'
+    msg = f'{found_tag},{x},{y}' # string to be sent over mqtt
     print(msg)
 
-    client.publish(topic_pub.encode(), msg.encode())
+    client.publish(topic_pub.encode(), msg.encode()) # publish
 
-    found_tag = 0
-    time.sleep_ms(50)
+    found_tag = 0      # reset found_tag to 0
+    time.sleep_ms(100)
