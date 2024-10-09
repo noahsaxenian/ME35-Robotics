@@ -10,7 +10,7 @@ KEY = mysecrets['key']    # Network Password
 
 mqtt_broker = 'broker.hivemq.com'
 
-topic_pub = 'ME35-24/noahmedha'
+topic_pub = 'ME35-24/noahcam'
 
 # Init wlan module and connect to network
 wlan = network.WLAN(network.STA_IF)
@@ -43,18 +43,19 @@ c_y = 120 * 0.5  # find_apriltags defaults to this if not set (the image.h * 0.5
 found_tag = 0
 while True:
     # get x, y coordinates of a tag
-    x, y = None, None
+    x, z = None, None
     img = sensor.snapshot()
     for tag in img.find_apriltags(
         fx=f_x, fy=f_y, cx=c_x, cy=c_y):
         img.draw_rectangle(tag.rect, color=(255, 0, 0))
         img.draw_cross(tag.cx, tag.cy, color=(0, 255, 0))
         x = tag.x_translation
-        y = tag.y_translation
+        z = tag.z_translation
+
         found_tag = 1 # 1 if tag, 0 if no tag found
 
-    msg = f'{found_tag},{x},{y}' # string to be sent over mqtt
-    print(msg)
+    msg = f'{found_tag},{x},{z}' # string to be sent over mqtt
+    #print(msg)
 
     client.publish(topic_pub.encode(), msg.encode()) # publish
 
