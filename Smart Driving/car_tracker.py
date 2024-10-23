@@ -10,13 +10,14 @@ port = 1883
 topic_sub = 'ME35-24/noahcam'
 
 desired_x = 0  # Desired position, 0 is center
-desired_z = -7
+desired_z = -7 # z < -3 for the size april tag used
 
 x_pos = desired_x
 z_pos = desired_z
 found_tag = True
 
 def callback(topic, msg):
+    # callback function to decode mqtt message
     global x_pos, z_pos, found_tag
     string = msg.decode()
     if string[1] == ",":  # confirm correct format from camera
@@ -30,6 +31,7 @@ def callback(topic, msg):
             x_pos = desired_x
             z_pos = desired_z
 
+# connect to MQTT
 client = MQTTClient('motorcontrol', mqtt_broker, port)
 client.connect()
 print('Connected to %s MQTT broker' % (mqtt_broker))
@@ -39,13 +41,10 @@ client.subscribe(topic_sub.encode())  # subscribe to the topic
 # Setup PWM control for four pins, two for each motor
 pwm2 = PWM(Pin(2))
 pwm3 = PWM(Pin(3))
-
 pwm4 = PWM(Pin(4))
 pwm5 = PWM(Pin(5))
-
 pwm2.freq(1000)
 pwm3.freq(1000)
-
 pwm4.freq(1000)
 pwm5.freq(1000)
 
@@ -56,7 +55,7 @@ kd_speed = 1.0  # Derivative gain for speed
 kp_turn = 2.0  # Proportional gain for turning
 kd_turn = 0.5  # Derivative gain for turning
 
-dead_zone = 6000  # dead zone threshold, tune for motor
+dead_zone = 6000  # dead zone threshold
 
 # Variables to track previous error for PD controllers
 previous_error_speed = 0
@@ -128,6 +127,7 @@ while True:
         # Control the motors using the control signals
         control_motors(control_signal_speed, turn_signal)
     else:
+        # stop
         pwm2.duty_u16(0)
         pwm3.duty_u16(0)
         pwm5.duty_u16(0)
